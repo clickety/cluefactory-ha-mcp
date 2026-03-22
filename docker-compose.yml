@@ -1,0 +1,27 @@
+services:
+  cluefactory-ha-mcp:
+    build: .
+    container_name: cluefactory-ha-mcp
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - HA_URL=${HA_URL}
+      - HA_TOKEN=${HA_TOKEN}
+      - MCP_TRANSPORT=http
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8000
+    # Optional: connect to the same Docker network as Home Assistant
+    # networks:
+    #   - homeassistant
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# Uncomment if you run HA in Docker and want them on the same network:
+# networks:
+#   homeassistant:
+#     external: true
