@@ -6,16 +6,16 @@ services:
     ports:
       - "${MCP_PORT:-8000}:8000"
     environment:
-      - HA_URL=${HA_URL}
-      - HA_TOKEN=${HA_TOKEN}
+      - HA_URL
+      - HA_TOKEN
+      - MCP_PORT
       - MCP_TRANSPORT=http
       - MCP_HOST=0.0.0.0
-      - MCP_PORT=8000
     # Optional: connect to the same Docker network as Home Assistant
     # networks:
     #   - homeassistant
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/mcp')"]
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost',8000),timeout=5); s.close()"]
       interval: 30s
       timeout: 10s
       retries: 3
