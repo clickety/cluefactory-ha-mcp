@@ -1098,6 +1098,10 @@ if __name__ == "__main__":
         # clients can connect. The HA token is the auth layer.
         mcp.settings.transport_security.enable_dns_rebinding_protection = False
 
+        # Stateless HTTP mode: disables session management and responds correctly
+        # to OAuth discovery requests (returning no-auth), which mcp-remote requires.
+        mcp.settings.stateless_http = True
+
         mcp.run(transport="streamable-http")
     else:
         mcp.run(transport="stdio")
