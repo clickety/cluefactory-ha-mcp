@@ -2,6 +2,9 @@
 """
 cluefactory-ha-mcp: Home Assistant MCP Server
 
+Version: 1.1.1
+
+
 Provides full automation management and entity control for Home Assistant
 via the HA REST API. Requires a Long-Lived Access Token and your HA URL.
 
@@ -17,6 +20,7 @@ Environment variables:
 
 import json
 import os
+import re
 import sys
 from enum import Enum
 from ipaddress import AddressValueError, IPv4Address, IPv6Address, ip_network
@@ -1141,6 +1145,23 @@ if __name__ == "__main__":
 
         app = mcp.streamable_http_app()
         app.add_middleware(IPAllowlistMiddleware, allowed_networks=allowed_networks)
+
+        # Read version from the module docstring (line starting with "Version:")
+        _version = "unknown"
+        with open(__file__) as _f:
+            for _line in _f:
+                _m = re.match(r"^Version:\s+(.+)", _line.strip())
+                if _m:
+                    _version = _m.group(1)
+                    break
+
+        from starlette.routing import Route
+        from starlette.responses import JSONResponse
+
+        async def test_endpoint(request):
+            return JSONResponse({"status": "success", "version": _version})
+
+        app.routes.append(Route("/test", test_endpoint, methods=["GET"]))
 
         uvicorn.run(app, host=host, port=port)
     else:

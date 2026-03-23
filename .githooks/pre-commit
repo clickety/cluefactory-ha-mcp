@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Auto-bump the patch version in server.py whenever it is staged for commit.
+
+set -euo pipefail
+
+FILE="server.py"
+
+# Only run if server.py is staged
+if ! git diff --cached --name-only | grep -q "^${FILE}$"; then
+  exit 0
+fi
+
+# Extract current version
+CURRENT=$(grep -oP '(?<=^Version:\s)[\d.]+' "$FILE" || true)
+if [[ -z "$CURRENT" ]]; then
+  echo "pre-commit: no Version: line found in $FILE — skipping bump" >&2
+  exit 0
+fi
+
+# Bump patch (x.y.z → x.y.z+1)
+MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+MINOR=$(echo "$CURRENT" | cut -d. -f2)
+PATCH=$(echo "$CURRENT" | cut -d. -f3)
+NEW="${MAJOR}.${MINOR}.$((PATCH + 1))"
+
+# Update in place
+sed -i "s/^Version: ${CURRENT}/Version: ${NEW}/" "$FILE"
+
+# Re-stage the file so the bumped version is included in the commit
+git add "$FILE"
+
+echo "pre-commit: bumped $FILE version $CURRENT → $NEW"
