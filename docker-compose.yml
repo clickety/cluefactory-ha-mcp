@@ -4,7 +4,7 @@ services:
     container_name: cluefactory-ha-mcp
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${MCP_PORT:-8000}:8000"
     environment:
       - HA_URL=${HA_URL}
       - HA_TOKEN=${HA_TOKEN}
@@ -15,7 +15,7 @@ services:
     # networks:
     #   - homeassistant
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/mcp')"]
       interval: 30s
       timeout: 10s
       retries: 3

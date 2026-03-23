@@ -1089,6 +1089,15 @@ if __name__ == "__main__":
         host = os.environ.get("MCP_HOST", "0.0.0.0")
         port = int(os.environ.get("MCP_PORT", "8000"))
         print(f"Starting cluefactory-ha-mcp over HTTP on {host}:{port}", file=sys.stderr)
-        mcp.run(transport="streamable-http", host=host, port=port)
+
+        # Configure host/port via settings (FastMCP ignores these as run() kwargs)
+        mcp.settings.host = host
+        mcp.settings.port = port
+
+        # Disable localhost-only DNS rebinding protection so Docker/network
+        # clients can connect. The HA token is the auth layer.
+        mcp.settings.transport_security.enable_dns_rebinding_protection = False
+
+        mcp.run(transport="streamable-http")
     else:
         mcp.run(transport="stdio")
