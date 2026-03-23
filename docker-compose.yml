@@ -9,6 +9,7 @@ services:
       - HA_URL
       - HA_TOKEN
       - MCP_PORT
+      - MCP_ALLOWED_NETWORKS
       - MCP_TRANSPORT=http
       - MCP_HOST=0.0.0.0
     # Optional: connect to the same Docker network as Home Assistant

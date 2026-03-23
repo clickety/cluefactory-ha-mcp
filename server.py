@@ -6,22 +6,29 @@ Provides full automation management and entity control for Home Assistant
 via the HA REST API. Requires a Long-Lived Access Token and your HA URL.
 
 Environment variables:
-  HA_URL        - Base URL of your HA instance (e.g. http://homeassistant.local:8123)
-  HA_TOKEN      - Long-Lived Access Token from your HA user profile
-  MCP_TRANSPORT - Transport mode: 'stdio' (default, local) or 'http' (network/Docker)
-  MCP_HOST      - Host to bind when using HTTP transport (default: 0.0.0.0)
-  MCP_PORT      - Port to listen on when using HTTP transport (default: 8000)
+  HA_URL              - Base URL of your HA instance (e.g. http://homeassistant.local:8123)
+  HA_TOKEN            - Long-Lived Access Token from your HA user profile
+  MCP_TRANSPORT       - Transport mode: 'stdio' (default, local) or 'http' (network/Docker)
+  MCP_HOST            - Host to bind when using HTTP transport (default: 0.0.0.0)
+  MCP_PORT            - Port to listen on when using HTTP transport (default: 8000)
+  MCP_ALLOWED_NETWORKS - Comma-separated CIDRs allowed to connect (default: 0.0.0.0/0)
+                         Example: 192.168.178.0/24,10.0.0.0/8
 """
 
 import json
 import os
 import sys
 from enum import Enum
+from ipaddress import AddressValueError, IPv4Address, IPv6Address, ip_network
 from typing import Any, Dict, List, Optional
 
 import httpx
+import uvicorn
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 # ---------------------------------------------------------------------------
 # Server initialisation
@@ -1082,26 +1089,59 @@ async def ha_render_template(params: RenderTemplateInput) -> str:
 # Entry point
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# IP allowlist middleware
+# ---------------------------------------------------------------------------
+
+class IPAllowlistMiddleware(BaseHTTPMiddleware):
+    """Reject connections from IPs not in the configured CIDR allowlist."""
+
+    def __init__(self, app, allowed_networks: List[str]) -> None:
+        super().__init__(app)
+        self.networks = [ip_network(n.strip(), strict=False) for n in allowed_networks]
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        client_host = request.client.host if request.client else None
+        if client_host:
+            try:
+                addr = IPv4Address(client_host)
+            except AddressValueError:
+                try:
+                    addr = IPv6Address(client_host)
+                except AddressValueError:
+                    return Response("Forbidden", status_code=403)
+            if not any(addr in net for net in self.networks):
+                print(f"Rejected connection from {client_host} (not in allowed networks)", file=sys.stderr)
+                return Response("Forbidden", status_code=403)
+        return await call_next(request)
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
 if __name__ == "__main__":
     transport = os.environ.get("MCP_TRANSPORT", "stdio").lower()
 
     if transport == "http":
         host = os.environ.get("MCP_HOST", "0.0.0.0")
         port = int(os.environ.get("MCP_PORT", "8000"))
+        raw_networks = os.environ.get("MCP_ALLOWED_NETWORKS", "0.0.0.0/0,::/0")
+        allowed_networks = [n.strip() for n in raw_networks.split(",") if n.strip()]
+
         print(f"Starting cluefactory-ha-mcp over HTTP on {host}:{port}", file=sys.stderr)
+        print(f"Allowed networks: {', '.join(allowed_networks)}", file=sys.stderr)
 
-        # Configure host/port via settings (FastMCP ignores these as run() kwargs)
-        mcp.settings.host = host
-        mcp.settings.port = port
-
-        # Disable localhost-only DNS rebinding protection so Docker/network
-        # clients can connect. The HA token is the auth layer.
+        # Disable FastMCP's localhost-only security — we handle access control
+        # ourselves via IPAllowlistMiddleware above.
         mcp.settings.transport_security.enable_dns_rebinding_protection = False
-
-        # Stateless HTTP mode: disables session management and responds correctly
-        # to OAuth discovery requests (returning no-auth), which mcp-remote requires.
+        mcp.settings.transport_security.allowed_hosts = ["*"]
+        mcp.settings.transport_security.allowed_origins = ["*"]
         mcp.settings.stateless_http = True
 
-        mcp.run(transport="streamable-http")
+        app = mcp.streamable_http_app()
+        app.add_middleware(IPAllowlistMiddleware, allowed_networks=allowed_networks)
+
+        uvicorn.run(app, host=host, port=port)
     else:
         mcp.run(transport="stdio")
