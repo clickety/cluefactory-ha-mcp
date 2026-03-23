@@ -2,7 +2,7 @@
 """
 cluefactory-ha-mcp: Home Assistant MCP Server
 
-Version: 1.1.2
+Version: 1.1.3
 
 
 Provides full automation management and entity control for Home Assistant
@@ -16,6 +16,9 @@ Environment variables:
   MCP_PORT            - Port to listen on when using HTTP transport (default: 8000)
   MCP_ALLOWED_NETWORKS - Comma-separated CIDRs allowed to connect (default: 0.0.0.0/0)
                          Example: 192.168.178.0/24,10.0.0.0/8
+  MCP_SSL_DIR          - Directory containing cert.pem and privkey.pem for HTTPS.
+                         If unset, server runs plain HTTP.
+                         Example: /etc/letsencrypt/live/yourdomain.com
 """
 
 import json
@@ -1165,6 +1168,15 @@ if __name__ == "__main__":
 
         app.routes.append(Route("/test", test_endpoint, methods=["GET"]))
 
-        uvicorn.run(app, host=host, port=port)
+        ssl_dir = os.environ.get("MCP_SSL_DIR", "").strip()
+        ssl_kwargs: Dict[str, Any] = {}
+        if ssl_dir:
+            ssl_kwargs["ssl_certfile"] = os.path.join(ssl_dir, "cert.pem")
+            ssl_kwargs["ssl_keyfile"] = os.path.join(ssl_dir, "privkey.pem")
+            print(f"SSL enabled — certs from {ssl_dir}", file=sys.stderr)
+        else:
+            print("SSL disabled — running plain HTTP", file=sys.stderr)
+
+        uvicorn.run(app, host=host, port=port, **ssl_kwargs)
     else:
         mcp.run(transport="stdio")
