@@ -14,7 +14,7 @@ services:
       - MCP_HOST=0.0.0.0
       - MCP_SSL_DIR
     volumes:
-      - /Users/server/services/letsencrypt/config/live/slaapt.niet.io:/certs:ro
+      - /Users/server/services/letsencrypt/config:/etc/letsencrypt:ro
     # Optional: connect to the same Docker network as Home Assistant
     # networks:
     #   - homeassistant
