@@ -2,7 +2,7 @@
 """
 cluefactory-ha-mcp: Home Assistant MCP Server
 
-Version: 1.1.1
+Version: 1.1.2
 
 
 Provides full automation management and entity control for Home Assistant
@@ -22,6 +22,7 @@ import json
 import os
 import re
 import sys
+import uuid
 from enum import Enum
 from ipaddress import AddressValueError, IPv4Address, IPv6Address, ip_network
 from typing import Any, Dict, List, Optional
@@ -745,8 +746,9 @@ async def ha_create_automation(params: CreateAutomationInput) -> str:
             "action": params.action,
             "mode": params.mode or "single",
         }
-        result = await _request("POST", "/config/automation/config", json_body=body)
-        automation_id = result.get("id", "unknown")
+        automation_id = str(uuid.uuid4()).replace("-", "")
+        body["id"] = automation_id
+        await _request("POST", f"/config/automation/config/{automation_id}", json_body=body)
         return (
             f"Automation created successfully.\n"
             f"- **Alias**: {params.alias}\n"
