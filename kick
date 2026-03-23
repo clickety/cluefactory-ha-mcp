@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Pull latest and rebuild the container.
+set -euo pipefail
+
+git pull
+docker compose down
+docker compose up --build -d
