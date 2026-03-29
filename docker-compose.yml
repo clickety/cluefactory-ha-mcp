@@ -13,8 +13,11 @@ services:
       - MCP_TRANSPORT=http
       - MCP_HOST=0.0.0.0
       - MCP_SSL_DIR
+      - MCP_SSL_DIR_MOUNT
     volumes:
-      - /Users/server/services/letsencrypt/config:/etc/letsencrypt:ro
+      # Mount SSL cert directory if MCP_SSL_DIR is set, e.g.:
+      # - /etc/letsencrypt/live/yourdomain.com:/certs:ro
+      - ${MCP_SSL_DIR}:${MCP_SSL_DIR_MOUNT}:ro
     # Optional: connect to the same Docker network as Home Assistant
     # networks:
     #   - homeassistant
