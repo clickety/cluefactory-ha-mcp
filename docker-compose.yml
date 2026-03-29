@@ -15,9 +15,10 @@ services:
       - MCP_SSL_DIR
       - MCP_SSL_DIR_MOUNT
     volumes:
-      # Mount SSL cert directory if MCP_SSL_DIR is set, e.g.:
-      # - /etc/letsencrypt/live/yourdomain.com:/certs:ro
-      - ${MCP_SSL_DIR}:${MCP_SSL_DIR_MOUNT}:ro
+      # MCP_SSL_DIR = host path to letsencrypt config root (so archive/ symlinks resolve)
+      # MCP_SSL_DIR_MOUNT = full container path to cert dir, read by server.py
+      # e.g. MCP_SSL_DIR=/path/to/letsencrypt/config  MCP_SSL_DIR_MOUNT=/etc/letsencrypt/live/yourdomain.com
+      - ${MCP_SSL_DIR}:/etc/letsencrypt:ro
     # Optional: connect to the same Docker network as Home Assistant
     # networks:
     #   - homeassistant
