@@ -88,7 +88,14 @@ async def _request(
         )
         response.raise_for_status()
         if response.content:
-            return response.json()
+            content_type = response.headers.get("content-type", "")
+            if "application/json" in content_type:
+                return response.json()
+            # HA template endpoint and others return plain text
+            try:
+                return response.json()
+            except Exception:
+                return response.text
         return {}
 
 
@@ -1090,6 +1097,93 @@ async def ha_render_template(params: RenderTemplateInput) -> str:
         if isinstance(result, str):
             return result
         return json.dumps(result, indent=2)
+    except Exception as e:
+        return _handle_error(e)
+
+
+# ---------------------------------------------------------------------------
+# Tool: ha_get_history
+# ---------------------------------------------------------------------------
+
+
+class GetHistoryInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
+
+    entity_id: str = Field(
+        ...,
+        description="Entity ID to retrieve history for, e.g. 'sensor.network_cabinet_power'.",
+        min_length=3,
+    )
+    hours: Optional[int] = Field(
+        default=24,
+        description="How many hours of history to retrieve (default 24, max 168).",
+        ge=1,
+        le=168,
+    )
+    significant_changes_only: Optional[bool] = Field(
+        default=True,
+        description="If True, only return significant state changes (default True). Set False for numeric sensors to get all readings.",
+    )
+
+
+@mcp.tool(
+    name="ha_get_history",
+    annotations={
+        "title": "Get Historical States for a Home Assistant Entity",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    },
+)
+async def ha_get_history(params: GetHistoryInput) -> str:
+    """Retrieve the state history of a Home Assistant entity over a time period.
+
+    Useful for checking what a sensor was reading earlier, reviewing past power
+    consumption, seeing when lights were on, etc.
+
+    Args:
+        params (GetHistoryInput):
+            - entity_id (str): Entity to query, e.g. 'sensor.network_cabinet_power'
+            - hours (Optional[int]): Hours of history to retrieve (default 24, max 168)
+            - significant_changes_only (Optional[bool]): Skip minor fluctuations (default True)
+
+    Returns:
+        str: JSON list of state entries with timestamps and values.
+
+    Examples:
+        - "What was the network cabinet power before I removed the UDM?"
+          → entity_id='sensor.network_cabinet_power', hours=24
+        - "When did the front door open today?"
+          → entity_id='binary_sensor.front_door', hours=24
+    """
+    try:
+        from datetime import datetime, timezone, timedelta
+        start = datetime.now(timezone.utc) - timedelta(hours=params.hours)
+        start_str = start.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+        query_params: Dict[str, Any] = {
+            "filter_entity_id": params.entity_id,
+        }
+        if params.significant_changes_only:
+            query_params["significant_changes_only"] = "true"
+
+        data = await _request("GET", f"/history/period/{start_str}", params=query_params)
+
+        if not data or not isinstance(data, list) or not data[0]:
+            return f"No history found for {params.entity_id} in the last {params.hours} hours."
+
+        entries = data[0]
+        result = [
+            {
+                "time": e.get("last_changed", e.get("last_updated", "")),
+                "state": e.get("state", ""),
+                "unit": e.get("attributes", {}).get("unit_of_measurement", ""),
+            }
+            for e in entries
+        ]
+        return json.dumps({"entity_id": params.entity_id, "count": len(result), "history": result}, indent=2)
+
     except Exception as e:
         return _handle_error(e)
 
