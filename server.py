@@ -2,7 +2,7 @@
 """
 cluefactory-ha-mcp: Home Assistant MCP Server
 
-Version: 1.1.5
+Version: 1.1.6
 
 
 Provides full automation management and entity control for Home Assistant
@@ -1172,7 +1172,7 @@ if __name__ == "__main__":
         ssl_kwargs: Dict[str, Any] = {}
         if ssl_domain:
             ssl_dir = os.path.join("/certs", "live", ssl_domain)
-            ssl_kwargs["ssl_certfile"] = os.path.join(ssl_dir, "cert.pem")
+            ssl_kwargs["ssl_certfile"] = os.path.join(ssl_dir, "fullchain.pem")
             ssl_kwargs["ssl_keyfile"] = os.path.join(ssl_dir, "privkey.pem")
             print(f"SSL enabled — certs from {ssl_dir}", file=sys.stderr)
         else:
