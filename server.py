@@ -2,7 +2,7 @@
 """
 cluefactory-ha-mcp: Home Assistant MCP Server
 
-Version: 1.1.4
+Version: 1.1.5
 
 
 Provides full automation management and entity control for Home Assistant
@@ -1168,9 +1168,10 @@ if __name__ == "__main__":
 
         app.routes.append(Route("/test", test_endpoint, methods=["GET"]))
 
-        ssl_dir = os.environ.get("MCP_SSL_DIR_MOUNT", "").strip()
+        ssl_domain = os.environ.get("MCP_SSL_DOMAIN", "").strip()
         ssl_kwargs: Dict[str, Any] = {}
-        if ssl_dir:
+        if ssl_domain:
+            ssl_dir = os.path.join("/certs", "live", ssl_domain)
             ssl_kwargs["ssl_certfile"] = os.path.join(ssl_dir, "cert.pem")
             ssl_kwargs["ssl_keyfile"] = os.path.join(ssl_dir, "privkey.pem")
             print(f"SSL enabled — certs from {ssl_dir}", file=sys.stderr)

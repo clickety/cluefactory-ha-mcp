@@ -13,12 +13,12 @@ services:
       - MCP_TRANSPORT=http
       - MCP_HOST=0.0.0.0
       - MCP_SSL_DIR
-      - MCP_SSL_DIR_MOUNT
+      - MCP_SSL_DOMAIN
     volumes:
-      # MCP_SSL_DIR = host path to letsencrypt config root (so archive/ symlinks resolve)
-      # MCP_SSL_DIR_MOUNT = full container path to cert dir, read by server.py
-      # e.g. MCP_SSL_DIR=/path/to/letsencrypt/config  MCP_SSL_DIR_MOUNT=/etc/letsencrypt/live/yourdomain.com
-      - ${MCP_SSL_DIR}:/etc/letsencrypt:ro
+      # MCP_SSL_DIR = letsencrypt config root on host (e.g. /path/to/letsencrypt/config)
+      # MCP_SSL_DOMAIN = cert domain (e.g. slaapt.niet.io) — selects live/<domain> inside the container
+      # Leave MCP_SSL_DIR unset to run plain HTTP.
+      - ${MCP_SSL_DIR}:/certs:ro
     # Optional: connect to the same Docker network as Home Assistant
     # networks:
     #   - homeassistant
